@@ -1,7 +1,8 @@
-use Test::More tests => 2;
-use strict;
+use v6;
+use Test;
+use Archive::Tar;
 
-use_ok('Archive::Tar') or diag 'Archive::Tar not found -- exit' && die;
+plan 2;
 
-my $tar = new Archive::Tar;
-isa_ok( $tar, 'Archive::Tar', 'Object created' );
+my $tar = Archive::Tar.new;
+is $tar, Archive::Tar, 'Object created';
