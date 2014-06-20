@@ -215,10 +215,10 @@ sub _new_from_chunk {
     ### makes it start at 0 actually... :) ###
     my $i = -1;
     my %entry = map {
-	my ($s,$v)=($tmpl->[++$i],$tmpl->[++$i]);	# cdrake
-	($_)=($_=~/^([^\0]*)/) unless($s eq 'size');	# cdrake
-	$s=> $v ? oct $_ : $_				# cdrake
-	# $tmpl->[++$i] => $tmpl->[++$i] ? oct $_ : $_	# removed by cdrake - mucks up binary sizes >8gb
+    my ($s,$v)=($tmpl->[++$i],$tmpl->[++$i]);	# cdrake
+    ($_)=($_=~/^([^\0]*)/) unless($s eq 'size');	# cdrake
+    $s=> $v ? oct $_ : $_				# cdrake
+    # $tmpl->[++$i] => $tmpl->[++$i] ? oct $_ : $_	# removed by cdrake - mucks up binary sizes >8gb
     } unpack( UNPACK, $chunk );				# cdrake
     # } map { /^([^\0]*)/ } unpack( UNPACK, $chunk );	# old - replaced now by cdrake
 
@@ -232,9 +232,9 @@ sub _new_from_chunk {
 
     my $obj = bless { %entry, %args }, $class;
 
-	### magic is a filetype string.. it should have something like 'ustar' or
-	### something similar... if the chunk is garbage, skip it
-	return unless $obj->magic !~ /\W/;
+    ### magic is a filetype string.. it should have something like 'ustar' or
+    ### something similar... if the chunk is garbage, skip it
+    return unless $obj->magic !~ /\W/;
 
     ### store the original chunk ###
     $obj->raw( $chunk );
@@ -511,8 +511,8 @@ sub validate {
     ### http://www.gnu.org/software/tar/manual/tar.html#SEC139
     ### so we do both a signed AND unsigned validate. if one succeeds, that's
     ### good enough
-	return (   (unpack ("%16C*", $raw) == $self->chksum)
-	        or (unpack ("%16c*", $raw) == $self->chksum)) ? 1 : 0;
+    return (   (unpack ("%16C*", $raw) == $self->chksum)
+            or (unpack ("%16c*", $raw) == $self->chksum)) ? 1 : 0;
 }
 
 =head2 $bool = $file->has_content
@@ -597,7 +597,7 @@ sub rename {
     $self->name( $file );
     $self->prefix( $prefix );
 
-	return 1;
+    return 1;
 }
 
 =head2 $bool = $file->chmod $mode)
@@ -632,14 +632,14 @@ sub chown {
     return unless defined $uname;
     my $gname;
     if (-1 != index($uname, ':')) {
-	($uname, $gname) = split(/:/, $uname);
+    ($uname, $gname) = split(/:/, $uname);
     } else {
-	$gname = shift if @_ > 0;
+    $gname = shift if @_ > 0;
     }
 
     $self->uname( $uname );
     $self->gname( $gname ) if $gname;
-	return 1;
+    return 1;
 }
 
 =head1 Convenience methods
