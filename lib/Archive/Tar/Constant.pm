@@ -32,7 +32,7 @@ sub EXPORT(|) {
     %EXPORT<COMPRESS_GZIP>  = 9;
     %EXPORT<COMPRESS_BZIP>  = 'bzip2';
 
-    %EXPORT<BLOCK_SIZE>    := { my $n = int($^a/BLOCK); $n++ if $^a % BLOCK; $n * BLOCK };
+    %EXPORT<&BLOCK_SIZE>   := { my $n = ($^a/BLOCK).Int; $n++ if $^a % BLOCK; $n * BLOCK };
     %EXPORT<TAR_PAD>       := -> $a? { my $x = $a || return; return "\x0" x (BLOCK - ($x % BLOCK) ) };
     %EXPORT<TAR_END>        = buf8.new(0 xx BLOCK);
 

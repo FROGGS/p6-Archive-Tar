@@ -371,33 +371,33 @@ method _read_tar($handle, *%opts) {
         ### ignore labels:
         ### http://www.gnu.org/software/tar/manual/html_chapter/Media.html#SEC159
         next if $entry.is_label;
+        say "$?FILE:$?LINE";
 
         if $entry.type.Str.chars and ($entry.is_file || $entry.is_longlink) {
             if $entry.is_file && !$entry.validate {
                 ### sometimes the chunk is rather fux0r3d and a whole 512
                 ### bytes ends up in the ->name area.
                 ### clean it up, if need be
-                #~ my $name = $entry->name;
-                #~ $name = substr($name, 0, 100) if length $name > 100;
-                #~ $name =~ s/\n/ /g;
+                my $name = $entry.name;
+                $name = substr($name, 0, 100) if $name.chars > 100;
+                $name.=subst(/\n/, '', :g);
 
-                #~ $self->_error( $name . qq[: checksum error] );
-                #~ next LOOP;
+                self._error = "{$name}: checksum error";
+                next LOOP;
             }
 
-            #~ my $block = BLOCK_SIZE->( $entry->size );
+            my $block = BLOCK_SIZE( $entry.size );
 
-            #~ $data = $entry->get_content_by_ref;
+            $data = $entry.get_content_by_ref;
 
-            #~ my $skip = 0;
-            #~ my $ctx;			# cdrake
+            my $skip = 0;
+            my $ctx;			# cdrake
             ### skip this entry if we're filtering
 
-            #~ if($md5) {			# cdrake
+            if $md5 {			# cdrake
                 #~ $ctx = Digest::MD5->new;	# cdrake
                 #~ $skip=5;		# cdrake
-
-            #~ }
+            }
             #~ elsif ($filter && $entry->name !~ $filter) {
                 #~ $skip = 1;
 
@@ -473,6 +473,7 @@ method _read_tar($handle, *%opts) {
                 #~ substr ($$data, $entry->size) = "";
             #~ }
         }
+        say "$?FILE:$?LINE";
 
         ### clean up of the entries.. posix tar /apparently/ has some
         ### weird 'feature' that allows for filenames > 255 characters
@@ -482,47 +483,52 @@ method _read_tar($handle, *%opts) {
 
         ### set the name for the next entry if this is a @LongLink;
         ### this is one ugly hack =/ but needed for direct extraction
-        #~ if( $entry->is_longlink ) {
-            #~ $real_name = $data;
-            #~ next LOOP;
-        #~ }
-        #~ elsif ( defined $real_name ) {
-            #~ $entry->name( $$real_name );
-            #~ $entry->prefix('');
-            #~ undef $real_name;
-        #~ }
+        if $entry.is_longlink {
+            $real_name = $data;
+            next LOOP;
+        }
+        elsif defined $real_name {
+            $entry.name   = $real_name;
+            $entry.prefix = '';
+            $real_name    = Nil;
+        }
 
-        #~ if ($filter && $entry->name !~ $filter) {
-            #~ next LOOP;
-
-        #~ } elsif ($filter_cb && ! $filter_cb->($entry)) {
-            #~ next LOOP;
+        if $filter && $entry.name !~~ $filter {
+            next LOOP;
+        }
+        elsif $filter_cb && !$filter_cb($entry) {
+            next LOOP;
 
             ### skip this entry if it's a pax header. This is a special file added
             ### by, among others, git-generated tarballs. It holds comments and is
             ### not meant for extracting. See #38932: pax_global_header extracted
-        #~ }
-        #~ elsif ( $entry->name eq PAX_HEADER or $entry->type =~ /^(x|g)$/ ) {
-            #~ next LOOP;
-        #~ }
+        }
+        elsif $entry.name eq PAX_HEADER or $entry.type ~~ /^[x|g]$/ {
+            next LOOP;
+        }
+        say "$?FILE:$?LINE";
 
-        #~ if ( $extract && !$entry->is_longlink
-                      #~ && !$entry->is_unknown
-                      #~ && !$entry->is_label ) {
-            #~ $self->_extract_file( $entry ) or return;
-        #~ }
+        if $extract && !$entry.is_longlink
+                    && !$entry.is_unknown
+                    && !$entry.is_label {
+            say "$?FILE:$?LINE";
+            self._extract_file( $entry ) or return;
+        }
+        say "$?FILE:$?LINE";
 
         ### Guard against tarfiles with garbage at the end
-        #~ last LOOP if $entry->name eq '';
+        last LOOP if $entry.name eq '';
+        say "$?FILE:$?LINE";
 
         ### push only the name on the rv if we're extracting
         ### -- for extract_archive
-        #~ push @$tarfile, ($extract ? $entry->name : $entry);
+        push $tarfile, ($extract ?? $entry.name !! $entry);
+        say "$?FILE:$?LINE";
 
-        #~ if( $limit ) {
-            #~ $count-- unless $entry->is_longlink || $entry->is_dir;
-            #~ last LOOP unless $count;
-        #~ }
+        if $limit {
+            $count-- unless $entry.is_longlink || $entry.is_dir;
+            last LOOP unless $count;
+        }
     }
     #~ continue {
         #~ undef $data;

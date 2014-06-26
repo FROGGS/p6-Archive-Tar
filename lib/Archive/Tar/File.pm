@@ -217,16 +217,15 @@ method new_from_chunk($chunk, *@args) {
 
     ### makes it start at 0 actually... :) ###
     my $i = -1;
-    say my %entry = $chunk.unpack( UNPACK ).map({
+    my %entry = $chunk.unpack( UNPACK ).map({
         my ($s, $v) = $tmpl[++$i], $tmpl[++$i];	# cdrake
-        say $s;
         my $t = $_;
-        #~ say $t.ords;
         if $s ne 'size' && /^(<-[\c0]>*)/ {
             $t = $0.Str.trim;
         }
         $s => ($v ?? $t ?? :8(~$t) !! 0 !! $t)				# cdrake
     });
+    say "$?FILE:$?LINE " ~ %entry.gist;
     if substr(%entry<size>, 0, 1) eq "\x80" {	# binary size extension for files >8gigs (> octal 77777777777777)	# cdrake
       my @sz       = %entry<size>.unpack("aCSNN");
       # Use the low 80 bits (should use the upper 15 as well, but as at year 2011,
@@ -551,11 +550,9 @@ method get_content {
 
 #~ =cut
 
-#~ sub get_content_by_ref {
-    #~ my $self = shift;
-
-    #~ return \$self->{data};
-#~ }
+method get_content_by_ref is rw {
+    self.data;
+}
 
 #~ =head2 $bool = $file->replace_content( $content )
 
