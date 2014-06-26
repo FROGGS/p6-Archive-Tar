@@ -372,7 +372,6 @@ method _read_tar($handle, *%opts) {
         ### ignore labels:
         ### http://www.gnu.org/software/tar/manual/html_chapter/Media.html#SEC159
         next if $entry.is_label;
-        say "$?FILE:$?LINE";
 
         if $entry.type.Str.chars and ($entry.is_file || $entry.is_longlink) {
             if $entry.is_file && !$entry.validate {
@@ -389,7 +388,7 @@ method _read_tar($handle, *%opts) {
 
             my $block = BLOCK_SIZE( $entry.size );
 
-            $data = $entry.get_content_by_ref;
+            $data := $entry.get_content_by_ref;
 
             my $skip = 0;
             my $ctx;			# cdrake
@@ -413,48 +412,46 @@ method _read_tar($handle, *%opts) {
                 $skip = 3;
             }
 
-            #~ if ($skip) {
+            if ($skip) {
                 #
                 # Since we're skipping, do not allocate memory for the
                 # whole file.  Read it 64 BLOCKS at a time.  Do not
                 # complete the skip yet because maybe what we read is a
                 # longlink and it won't get skipped after all
                 #
-                #~ my $amt = $block;
-                #~ my $fsz=$entry->size;	# cdrake
-                #~ while ($amt > 0) {
-                    #~ $$data = '';
-                    #~ my $this = 64 * BLOCK;
-                    #~ $this = $amt if $this > $amt;
-                    #~ if( $handle->read( $$data, $this ) < $this ) {
-                        #~ $self->_error( qq[Read error on tarfile (missing data) '].
-                                    #~ $entry->full_path ."' at offset $offset" );
-                        #~ next LOOP;
-                    #~ }
-                    #~ $amt -= $this;
-                    #~ $fsz -= $this;	# cdrake
-                    #~ substr ($$data, $fsz) = "" if ($fsz<0);	# remove external junk prior to md5	# cdrake
-                    #~ $ctx->add($$data) if($skip==5);	# cdrake
-                #~ }
-                #~ $$data = $ctx->hexdigest if($skip==5 && !$entry->is_longlink && !$entry->is_unknown && !$entry->is_label ) ;	# cdrake
-            #~ }
-            #~ else {
+                my $amt = $block;
+                my $fsz = $entry.size;	# cdrake
+                while $amt > 0 {
+                    $data = '';
+                    my $this = 64 * BLOCK;
+                    $this = $amt if $this > $amt;
+                    if $handle.read( $data, $this ) < $this {
+                        self._error = "Read error on tarfile (missing data) '{$entry.full_path}' at offset $offset";
+                        next LOOP;
+                    }
+                    $amt -= $this;
+                    $fsz -= $this;	# cdrake
+                    subbuf-rw($data, $fsz) = buf8.new if $fsz < 0;	# remove external junk prior to md5	# cdrake
+                    $ctx.add($data) if $skip == 5;	# cdrake
+                }
+                $data = $ctx.hexdigest if $skip == 5 && !$entry.is_longlink && !$entry.is_unknown && !$entry.is_label;	# cdrake
+            }
+            else {
                 ### just read everything into memory
                 ### can't do lazy loading since IO::Zlib doesn't support 'seek'
                 ### this is because Compress::Zlib doesn't support it =/
                 ### this reads in the whole data in one read() call.
-                #~ if ( $handle->read( $$data, $block ) < $block ) {
-                    #~ $self->_error( qq[Read error on tarfile (missing data) '].
-                                            #~ $entry->full_path ."' at offset $offset" );
-                    #~ next LOOP;
-                #~ }
+                if $data = $handle.read( $block ) and $data.bytes < $block {
+                    self._error = "Read error on tarfile (missing data) '{$entry.full_path}' at offset $offset";
+                    next LOOP;
+                }
                 ### throw away trailing garbage ###
-                #~ substr ($$data, $entry->size) = "" if defined $$data;
-            #~ }
+                subbuf-rw($data, $entry.size) = buf8.new if defined $data;
+            }
 
             ### part II of the @LongLink munging -- need to do /after/
             ### the checksum check.
-            #~ if( $entry->is_longlink ) {
+            if $entry.is_longlink {
                 ### weird thing in tarfiles -- if the file is actually a
                 ### @LongLink, the data part seems to have a trailing ^@
                 ### (unprintable) char. to display, pipe output through less.
@@ -466,14 +463,13 @@ method _read_tar($handle, *%opts) {
                 ### tossing out everything that's longer than that size.
 
                 ### count number of nulls
-                #~ my $nulls = $$data =~ tr/\0/\0/;
+                my $nulls = $data.list.grep(* == 0).elems;
 
                 ### cut data + size by that many bytes
-                #~ $entry->size( $entry->size - $nulls );
-                #~ substr ($$data, $entry->size) = "";
-            #~ }
+                $entry.size -= $nulls;
+                subbuf-rw($data, $entry.size) = buf8.new;
+            }
         }
-        say "$?FILE:$?LINE";
 
         ### clean up of the entries.. posix tar /apparently/ has some
         ### weird 'feature' that allows for filenames > 255 characters
@@ -490,7 +486,7 @@ method _read_tar($handle, *%opts) {
         elsif defined $real_name {
             $entry.name   = $real_name;
             $entry.prefix = '';
-            $real_name    = Nil;
+            undefine $real_name;
         }
 
         if $filter && $entry.name !~~ $filter {
@@ -506,33 +502,28 @@ method _read_tar($handle, *%opts) {
         elsif $entry.name eq PAX_HEADER or $entry.type ~~ /^[x|g]$/ {
             next LOOP;
         }
-        say "$?FILE:$?LINE";
 
         if $extract && !$entry.is_longlink
                     && !$entry.is_unknown
                     && !$entry.is_label {
-            say "$?FILE:$?LINE";
             self._extract_file( $entry ) or return;
         }
-        say "$?FILE:$?LINE";
 
         ### Guard against tarfiles with garbage at the end
         last LOOP if $entry.name eq '';
-        say "$?FILE:$?LINE";
 
         ### push only the name on the rv if we're extracting
         ### -- for extract_archive
         push $tarfile, ($extract ?? $entry.name !! $entry);
-        say "$?FILE:$?LINE";
 
         if $limit {
             $count-- unless $entry.is_longlink || $entry.is_dir;
             last LOOP unless $count;
         }
+        NEXT {
+            undefine $data;
+        }
     }
-    #~ continue {
-        #~ undef $data;
-    #~ }
 
     return $tarfile;
 }
