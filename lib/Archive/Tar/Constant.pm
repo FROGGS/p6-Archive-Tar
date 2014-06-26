@@ -40,7 +40,7 @@ sub EXPORT(|) {
     %EXPORT<&WRITE_ONLY>   := { $^a ?? 'wb' ~ $^a !! 'w' };
     %EXPORT<&MODE_READ>    := { +so $^a ~~ /^r/ };
 
-    #~ # Pointless assignment to make -w shut up
+    # Pointless assignment to make -w shut up
     #~ my $getpwuid; $getpwuid = 'unknown' unless eval { my $f = getpwuid (0); };
     #~ my $getgrgid; $getgrgid = 'unknown' unless eval { my $f = getgrgid (0); };
     #~ %EXPORT<UNAME>          = sub { $getpwuid || scalar getpwuid( shift() ) || '' };
@@ -95,7 +95,7 @@ sub _list_consts {
 
         #~ for my $name (sort keys %$stash ) {
 
-            #~ ### is it a subentry?
+            ### is it a subentry?
             #~ my $sub = $pkg->can( $name );
             #~ next unless defined $sub;
 

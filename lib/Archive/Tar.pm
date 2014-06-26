@@ -45,8 +45,8 @@ $RESOLVE_SYMLINK        = %*ENV<PERL5_AT_RESOLVE_SYMLINK> || 'speed';
     #~ use Config;
     #~ $HAS_PERLIO = $Config::Config{useperlio};
 
-    #~ ### try and load IO::String anyway, so you can dynamically
-    #~ ### switch between perlio and IO::String
+    ### try and load IO::String anyway, so you can dynamically
+    ### switch between perlio and IO::String
     #~ $HAS_IO_STRING = eval {
         #~ require IO::String;
         #~ import IO::String;
@@ -237,7 +237,7 @@ method _get_handle($file is copy, $compress = 0, $mode = READ_ONLY( ZLIB )) {
                 ( MODE_READ($mode) and $magic ~~ BZIP_MAGIC_NUM )
             )
         {
-            say "$?FILE:$?LINE";
+            die "$?FILE:$?LINE";
             ### different reader/writer modules, different error vars... sigh
             if MODE_READ($mode) {
                 #~ $fh = IO::Uncompress::Bunzip2->new( $file ) or do {
@@ -278,7 +278,7 @@ method _get_handle($file is copy, $compress = 0, $mode = READ_ONLY( ZLIB )) {
                 return;
             }
 
-            #~ ### enable bin mode on tar archives
+            ### enable bin mode on tar archives
             #~ binmode $fh;
         }
     }
@@ -374,9 +374,9 @@ method _read_tar($handle, *%opts) {
 
         if $entry.type.Str.chars and ($entry.is_file || $entry.is_longlink) {
             if $entry.is_file && !$entry.validate {
-                #~ ### sometimes the chunk is rather fux0r3d and a whole 512
-                #~ ### bytes ends up in the ->name area.
-                #~ ### clean it up, if need be
+                ### sometimes the chunk is rather fux0r3d and a whole 512
+                ### bytes ends up in the ->name area.
+                ### clean it up, if need be
                 #~ my $name = $entry->name;
                 #~ $name = substr($name, 0, 100) if length $name > 100;
                 #~ $name =~ s/\n/ /g;
@@ -391,7 +391,7 @@ method _read_tar($handle, *%opts) {
 
             #~ my $skip = 0;
             #~ my $ctx;			# cdrake
-            #~ ### skip this entry if we're filtering
+            ### skip this entry if we're filtering
 
             #~ if($md5) {			# cdrake
                 #~ $ctx = Digest::MD5->new;	# cdrake
@@ -405,21 +405,21 @@ method _read_tar($handle, *%opts) {
             #~ elsif ($filter_cb && ! $filter_cb->($entry)) {
                 #~ $skip = 2;
 
-                #~ ### skip this entry if it's a pax header. This is a special file added
-                #~ ### by, among others, git-generated tarballs. It holds comments and is
-                #~ ### not meant for extracting. See #38932: pax_global_header extracted
+                ### skip this entry if it's a pax header. This is a special file added
+                ### by, among others, git-generated tarballs. It holds comments and is
+                ### not meant for extracting. See #38932: pax_global_header extracted
             #~ }
             #~ elsif ( $entry->name eq PAX_HEADER or $entry->type =~ /^(x|g)$/ ) {
                 #~ $skip = 3;
             #~ }
 
             #~ if ($skip) {
-                #~ #
-                #~ # Since we're skipping, do not allocate memory for the
-                #~ # whole file.  Read it 64 BLOCKS at a time.  Do not
-                #~ # complete the skip yet because maybe what we read is a
-                #~ # longlink and it won't get skipped after all
-                #~ #
+                #
+                # Since we're skipping, do not allocate memory for the
+                # whole file.  Read it 64 BLOCKS at a time.  Do not
+                # complete the skip yet because maybe what we read is a
+                # longlink and it won't get skipped after all
+                #
                 #~ my $amt = $block;
                 #~ my $fsz=$entry->size;	# cdrake
                 #~ while ($amt > 0) {
@@ -439,36 +439,36 @@ method _read_tar($handle, *%opts) {
                 #~ $$data = $ctx->hexdigest if($skip==5 && !$entry->is_longlink && !$entry->is_unknown && !$entry->is_label ) ;	# cdrake
             #~ }
             #~ else {
-                #~ ### just read everything into memory
-                #~ ### can't do lazy loading since IO::Zlib doesn't support 'seek'
-                #~ ### this is because Compress::Zlib doesn't support it =/
-                #~ ### this reads in the whole data in one read() call.
+                ### just read everything into memory
+                ### can't do lazy loading since IO::Zlib doesn't support 'seek'
+                ### this is because Compress::Zlib doesn't support it =/
+                ### this reads in the whole data in one read() call.
                 #~ if ( $handle->read( $$data, $block ) < $block ) {
                     #~ $self->_error( qq[Read error on tarfile (missing data) '].
                                             #~ $entry->full_path ."' at offset $offset" );
                     #~ next LOOP;
                 #~ }
-                #~ ### throw away trailing garbage ###
+                ### throw away trailing garbage ###
                 #~ substr ($$data, $entry->size) = "" if defined $$data;
             #~ }
 
-            #~ ### part II of the @LongLink munging -- need to do /after/
-            #~ ### the checksum check.
+            ### part II of the @LongLink munging -- need to do /after/
+            ### the checksum check.
             #~ if( $entry->is_longlink ) {
-                #~ ### weird thing in tarfiles -- if the file is actually a
-                #~ ### @LongLink, the data part seems to have a trailing ^@
-                #~ ### (unprintable) char. to display, pipe output through less.
-                #~ ### but that doesn't *always* happen.. so check if the last
-                #~ ### character is a control character, and if so remove it
-                #~ ### at any rate, we better remove that character here, or tests
-                #~ ### like 'eq' and hash lookups based on names will SO not work
-                #~ ### remove it by calculating the proper size, and then
-                #~ ### tossing out everything that's longer than that size.
+                ### weird thing in tarfiles -- if the file is actually a
+                ### @LongLink, the data part seems to have a trailing ^@
+                ### (unprintable) char. to display, pipe output through less.
+                ### but that doesn't *always* happen.. so check if the last
+                ### character is a control character, and if so remove it
+                ### at any rate, we better remove that character here, or tests
+                ### like 'eq' and hash lookups based on names will SO not work
+                ### remove it by calculating the proper size, and then
+                ### tossing out everything that's longer than that size.
 
-                #~ ### count number of nulls
+                ### count number of nulls
                 #~ my $nulls = $$data =~ tr/\0/\0/;
 
-                #~ ### cut data + size by that many bytes
+                ### cut data + size by that many bytes
                 #~ $entry->size( $entry->size - $nulls );
                 #~ substr ($$data, $entry->size) = "";
             #~ }
@@ -498,9 +498,9 @@ method _read_tar($handle, *%opts) {
         #~ } elsif ($filter_cb && ! $filter_cb->($entry)) {
             #~ next LOOP;
 
-            #~ ### skip this entry if it's a pax header. This is a special file added
-            #~ ### by, among others, git-generated tarballs. It holds comments and is
-            #~ ### not meant for extracting. See #38932: pax_global_header extracted
+            ### skip this entry if it's a pax header. This is a special file added
+            ### by, among others, git-generated tarballs. It holds comments and is
+            ### not meant for extracting. See #38932: pax_global_header extracted
         #~ }
         #~ elsif ( $entry->name eq PAX_HEADER or $entry->type =~ /^(x|g)$/ ) {
             #~ next LOOP;
@@ -512,11 +512,11 @@ method _read_tar($handle, *%opts) {
             #~ $self->_extract_file( $entry ) or return;
         #~ }
 
-        #~ ### Guard against tarfiles with garbage at the end
+        ### Guard against tarfiles with garbage at the end
         #~ last LOOP if $entry->name eq '';
 
-        #~ ### push only the name on the rv if we're extracting
-        #~ ### -- for extract_archive
+        ### push only the name on the rv if we're extracting
+        ### -- for extract_archive
         #~ push @$tarfile, ($extract ? $entry->name : $entry);
 
         #~ if( $limit ) {
@@ -549,8 +549,8 @@ sub contains_file {
 
     #~ return unless defined $full;
 
-    #~ ### don't warn if the entry isn't there.. that's what this function
-    #~ ### is for after all.
+    ### don't warn if the entry isn't there.. that's what this function
+    ### is for after all.
     #~ local $WARN = 0;
     #~ return 1 if $self->_find_entry($full);
     #~ return;
@@ -579,25 +579,25 @@ sub extract {
     #~ my @args    = @_;
     #~ my @files;
 
-    #~ # use the speed optimization for all extracted files
+    # use the speed optimization for all extracted files
     #~ local($self->{cwd}) = cwd() unless $self->{cwd};
 
-    #~ ### you requested the extraction of only certain files
+    ### you requested the extraction of only certain files
     #~ if( @args ) {
         #~ for my $file ( @args ) {
-            #~ ### it's already an object?
+            ### it's already an object?
             #~ if( UNIVERSAL::isa( $file, 'Archive::Tar::File' ) ) {
                 #~ push @files, $file;
                 #~ next;
 
-            #~ ### go find it then
+            ### go find it then
             #~ }
             #~ else {
                 #~ my $found;
                 #~ for my $entry ( @{$self->_data} ) {
                     #~ next unless $file eq $entry->full_path;
 
-                    #~ ### we found the file you're looking for
+                    ### we found the file you're looking for
                     #~ push @files, $entry;
                     #~ $found++;
                 #~ }
@@ -609,19 +609,19 @@ sub extract {
             #~ }
         #~ }
 
-    #~ ### just grab all the file items
+    ### just grab all the file items
     #~ }
     #~ else {
         #~ @files = $self->get_files;
     #~ }
 
-    #~ ### nothing found? that's an error
+    ### nothing found? that's an error
     #~ unless( scalar @files ) {
         #~ $self->_error( qq[No files found for ] . $self->_file );
         #~ return;
     #~ }
 
-    #~ ### now extract them
+    ### now extract them
     #~ for my $entry ( @files ) {
         #~ unless( $self->_extract_file( $entry ) ) {
             #~ $self->_error(q[Could not extract ']. $entry->full_path .q['] );
@@ -664,11 +664,11 @@ sub _extract_file {
     #~ my $entry   = shift or return;
     #~ my $alt     = shift;
 
-    #~ ### you wanted an alternate extraction location ###
+    ### you wanted an alternate extraction location ###
     #~ my $name = defined $alt ? $alt : $entry->full_path;
 
-                            #~ ### splitpath takes a bool at the end to indicate
-                            #~ ### that it's splitting a dir
+                            ### splitpath takes a bool at the end to indicate
+                            ### that it's splitting a dir
     #~ my ($vol,$dirs,$file);
     #~ if ( defined $alt ) { # It's a local-OS path
         #~ ($vol,$dirs,$file) = File::Spec->splitpath(       $alt,
@@ -679,11 +679,11 @@ sub _extract_file {
     #~ }
 
     #~ my $dir;
-    #~ ### is $name an absolute path? ###
+    ### is $name an absolute path? ###
     #~ if( $vol || File::Spec->file_name_is_absolute( $dirs ) ) {
 
-        #~ ### absolute names are not allowed to be in tarballs under
-        #~ ### strict mode, so only allow it if a user tells us to do it
+        ### absolute names are not allowed to be in tarballs under
+        ### strict mode, so only allow it if a user tells us to do it
         #~ if( not defined $alt and not $INSECURE_EXTRACT_MODE ) {
             #~ $self->_error(
                 #~ q[Entry ']. $entry->full_path .q[' is an absolute path. ].
@@ -692,10 +692,10 @@ sub _extract_file {
             #~ return;
         #~ }
 
-        #~ ### user asked us to, it's fine.
+        ### user asked us to, it's fine.
         #~ $dir = File::Spec->catpath( $vol, $dirs, "" );
 
-    #~ ### it's a relative path ###
+    ### it's a relative path ###
     #~ }
     #~ else {
         #~ my $cwd     = (ref $self and defined $self->{cwd})
@@ -705,14 +705,14 @@ sub _extract_file {
         #~ my @dirs = defined $alt
             #~ ? File::Spec->splitdir( $dirs )         # It's a local-OS path
             #~ : File::Spec::Unix->splitdir( $dirs );  # it's UNIX-style, likely
-                                                    #~ # straight from the tarball
+                                                    # straight from the tarball
 
         #~ if( not defined $alt            and
             #~ not $INSECURE_EXTRACT_MODE
         #~ ) {
 
-            #~ ### paths that leave the current directory are not allowed under
-            #~ ### strict mode, so only allow it if a user tells us to do this.
+            ### paths that leave the current directory are not allowed under
+            ### strict mode, so only allow it if a user tells us to do this.
             #~ if( grep { $_ eq '..' } @dirs ) {
 
                 #~ $self->_error(
@@ -723,16 +723,16 @@ sub _extract_file {
                 #~ return;
             #~ }
 
-            #~ ### the archive may be asking us to extract into a symlink. This
-            #~ ### is not sane and a possible security issue, as outlined here:
-            #~ ### https://rt.cpan.org/Ticket/Display.html?id=30380
-            #~ ### https://bugzilla.redhat.com/show_bug.cgi?id=295021
-            #~ ### https://issues.rpath.com/browse/RPL-1716
+            ### the archive may be asking us to extract into a symlink. This
+            ### is not sane and a possible security issue, as outlined here:
+            ### https://rt.cpan.org/Ticket/Display.html?id=30380
+            ### https://bugzilla.redhat.com/show_bug.cgi?id=295021
+            ### https://issues.rpath.com/browse/RPL-1716
             #~ my $full_path = $cwd;
             #~ for my $d ( @dirs ) {
                 #~ $full_path = File::Spec->catdir( $full_path, $d );
 
-                #~ ### we've already checked this one, and it's safe. Move on.
+                ### we've already checked this one, and it's safe. Move on.
                 #~ next if ref $self and $self->{_link_cache}->{$full_path};
 
                 #~ if( -l $full_path ) {
@@ -748,15 +748,15 @@ sub _extract_file {
                     #~ return;
                 #~ }
 
-                #~ ### XXX keep a cache if possible, so the stats become cheaper:
+                ### XXX keep a cache if possible, so the stats become cheaper:
                 #~ $self->{_link_cache}->{$full_path} = 1 if ref $self;
             #~ }
         #~ }
 
-        #~ ### '.' is the directory delimiter on VMS, which has to be escaped
-        #~ ### or changed to '_' on vms.  vmsify is used, because older versions
-        #~ ### of vmspath do not handle this properly.
-        #~ ### Must not add a '/' to an empty directory though.
+        ### '.' is the directory delimiter on VMS, which has to be escaped
+        ### or changed to '_' on vms.  vmsify is used, because older versions
+        ### of vmspath do not handle this properly.
+        ### Must not add a '/' to an empty directory though.
         #~ map { length() ? VMS::Filespec::vmsify($_.'/') : $_ } @dirs if ON_VMS;
 
         #~ my ($cwd_vol,$cwd_dir,$cwd_file)
@@ -764,23 +764,23 @@ sub _extract_file {
         #~ my @cwd     = File::Spec->splitdir( $cwd_dir );
         #~ push @cwd, $cwd_file if length $cwd_file;
 
-        #~ ### We need to pass '' as the last element to catpath. Craig Berry
-        #~ ### explains why (msgid <p0624083dc311ae541393@[172.16.52.1]>):
-        #~ ### The root problem is that splitpath on UNIX always returns the
-        #~ ### final path element as a file even if it is a directory, and of
-        #~ ### course there is no way it can know the difference without checking
-        #~ ### against the filesystem, which it is documented as not doing.  When
-        #~ ### you turn around and call catpath, on VMS you have to know which bits
-        #~ ### are directory bits and which bits are file bits.  In this case we
-        #~ ### know the result should be a directory.  I had thought you could omit
-        #~ ### the file argument to catpath in such a case, but apparently on UNIX
-        #~ ### you can't.
+        ### We need to pass '' as the last element to catpath. Craig Berry
+        ### explains why (msgid <p0624083dc311ae541393@[172.16.52.1]>):
+        ### The root problem is that splitpath on UNIX always returns the
+        ### final path element as a file even if it is a directory, and of
+        ### course there is no way it can know the difference without checking
+        ### against the filesystem, which it is documented as not doing.  When
+        ### you turn around and call catpath, on VMS you have to know which bits
+        ### are directory bits and which bits are file bits.  In this case we
+        ### know the result should be a directory.  I had thought you could omit
+        ### the file argument to catpath in such a case, but apparently on UNIX
+        ### you can't.
         #~ $dir        = File::Spec->catpath(
                             #~ $cwd_vol, File::Spec->catdir( @cwd, @dirs ), ''
                         #~ );
 
-        #~ ### catdir() returns undef if the path is longer than 255 chars on
-        #~ ### older VMS systems.
+        ### catdir() returns undef if the path is longer than 255 chars on
+        ### older VMS systems.
         #~ unless ( defined $dir ) {
             #~ $^W && $self->_error( qq[Could not compose a path for '$dirs'\n] );
             #~ return;
@@ -801,19 +801,19 @@ sub _extract_file {
             #~ return;
         #~ }
 
-        #~ ### XXX chown here? that might not be the same as in the archive
-        #~ ### as we're only chown'ing to the owner of the file we're extracting
-        #~ ### not to the owner of the directory itself, which may or may not
-        #~ ### be another entry in the archive
-        #~ ### Answer: no, gnu tar doesn't do it either, it'd be the wrong
-        #~ ### way to go.
-        #~ #if( $CHOWN && CAN_CHOWN ) {
-        #~ #    chown $entry->uid, $entry->gid, $dir or
-        #~ #        $self->_error( qq[Could not set uid/gid on '$dir'] );
-        #~ #}
+        ### XXX chown here? that might not be the same as in the archive
+        ### as we're only chown'ing to the owner of the file we're extracting
+        ### not to the owner of the directory itself, which may or may not
+        ### be another entry in the archive
+        ### Answer: no, gnu tar doesn't do it either, it'd be the wrong
+        ### way to go.
+        #if( $CHOWN && CAN_CHOWN ) {
+        #    chown $entry->uid, $entry->gid, $dir or
+        #        $self->_error( qq[Could not set uid/gid on '$dir'] );
+        #}
     #~ }
 
-    #~ ### we're done if we just needed to create a dir ###
+    ### we're done if we just needed to create a dir ###
     #~ return 1 if $entry->is_dir;
 
     #~ my $full = File::Spec->catfile( $dir, $file );
@@ -848,9 +848,9 @@ sub _extract_file {
         #~ $self->_make_special_file( $entry, $full ) or return;
     #~ }
 
-    #~ ### only update the timestamp if it's not a symlink; that will change the
-    #~ ### timestamp of the original. This addresses bug #33669: Could not update
-    #~ ### timestamp warning on symlinks
+    ### only update the timestamp if it's not a symlink; that will change the
+    ### timestamp of the original. This addresses bug #33669: Could not update
+    ### timestamp warning on symlinks
     #~ if( not -l $full ) {
         #~ utime time, $entry->mtime - TIME_OFFSET, $full or
             #~ $self->_error( qq[Could not update timestamp] );
@@ -861,8 +861,8 @@ sub _extract_file {
             #~ $self->_error( qq[Could not set uid/gid on '$full'] );
     #~ }
 
-    #~ ### only chmod if we're allowed to, but never chmod symlinks, since they'll
-    #~ ### change the perms on the file they're linking too...
+    ### only chmod if we're allowed to, but never chmod symlinks, since they'll
+    ### change the perms on the file they're linking too...
     #~ if( $CHMOD and not -l $full ) {
         #~ my $mode = $entry->mode;
         #~ unless ($SAME_PERMISSIONS) {
@@ -926,7 +926,7 @@ sub _make_special_file {
 
     #~ }
     #~ elsif ( $entry->is_socket ) {
-        #~ ### the original doesn't do anything special for sockets.... ###
+        ### the original doesn't do anything special for sockets.... ###
         #~ 1;
     #~ }
 
@@ -950,7 +950,7 @@ sub _extract_special_file_as_plain_file {
             #~ last TRY;
         #~ }
 
-        #~ ### clone the entry, make it appear as a normal file ###
+        ### clone the entry, make it appear as a normal file ###
         #~ my $clone = $orig->clone;
         #~ $clone->_downgrade_to_plainfile;
         #~ $self->_extract_file( $clone, $file ) or last TRY;
@@ -990,14 +990,14 @@ sub list_files {
         #~ return map { $_->full_path } @{$self->_data};
     #~ }
     #~ else {
-        #~ #my @rv;
-        #~ #for my $obj ( @{$self->_data} ) {
-        #~ #    push @rv, { map { $_ => $obj->$_() } @$aref };
-        #~ #}
-        #~ #return @rv;
+        #my @rv;
+        #for my $obj ( @{$self->_data} ) {
+        #    push @rv, { map { $_ => $obj->$_() } @$aref };
+        #}
+        #return @rv;
 
-        #~ ### this does the same as the above.. just needs a +{ }
-        #~ ### to make sure perl doesn't confuse it for a block
+        ### this does the same as the above.. just needs a +{ }
+        ### to make sure perl doesn't confuse it for a block
         #~ return map {    my $o=$_;
                         #~ +{ map { $_ => $o->$_() } @$aref }
                     #~ } @{$self->_data};
@@ -1013,7 +1013,7 @@ sub _find_entry {
         #~ return;
     #~ }
 
-    #~ ### it's an object already
+    ### it's an object already
     #~ return $file if UNIVERSAL::isa( $file, 'Archive::Tar::File' );
 
 #~ seach_entry:
@@ -1029,12 +1029,12 @@ sub _find_entry {
             #~ $file = _symlinks_resolver( $link_entry->name, $file );
             #~ goto seach_entry if $self->_data;
 
-            #~ #this will be slower than never, but won't failed!
+            #this will be slower than never, but won't failed!
 
             #~ my $iterargs = $link_entry->{'_archive'};
             #~ if($Archive::Tar::RESOLVE_SYMLINK=~/speed/ && @$iterargs==3) {
-            #~ #faster	but whole archive will be read in memory
-                #~ #read whole archive and share data
+            #faster	but whole archive will be read in memory
+                #read whole archive and share data
                 #~ my $archive = Archive::Tar->new;
                 #~ $archive->read( @$iterargs );
                 #~ push @$iterargs, $archive; #take a trace for destruction
@@ -1045,7 +1045,7 @@ sub _find_entry {
             #~ }#faster
 
             #~ {#slower but lower memory usage
-                #~ # $iterargs = [$filename, $compressed, $opts];
+                # $iterargs = [$filename, $compressed, $opts];
                 #~ my $next = Archive::Tar->iter( @$iterargs );
                 #~ while(my $e = $next->()){
                     #~ if($e->full_path eq $file){
@@ -1220,10 +1220,10 @@ sub clear {
 #~ to be the C<gzip> compression level (between 1 and 9), but the use of
 #~ constants is preferred:
 
-  #~ # write a gzip compressed file
+  # write a gzip compressed file
   #~ $tar->write( 'out.tgz', COMPRESS_GZIP );
 
-  #~ # write a bzip compressed file
+  # write a bzip compressed file
   #~ $tar->write( 'out.tbz', COMPRESS_BZIP );
 
 #~ Note that when you pass in a filehandle, the compression argument
@@ -1250,7 +1250,7 @@ sub write {
     #~ my $ext_prefix  = shift; $ext_prefix = '' unless defined $ext_prefix;
     #~ my $dummy       = '';
 
-    #~ ### only need a handle if we have a file to print to ###
+    ### only need a handle if we have a file to print to ###
     #~ my $handle = length($file)
                     #~ ? ( $self->_get_handle($file, $gzip, WRITE_ONLY->($gzip) )
                         #~ or return )
@@ -1258,43 +1258,43 @@ sub write {
                     #~ : $HAS_IO_STRING ? IO::String->new
                     #~ : __PACKAGE__->no_string_support();
 
-    #~ ### Addresses: #41798: Nonempty $\ when writing a TAR file produces a
-    #~ ### corrupt TAR file. Must clear out $\ to make sure no garbage is
-    #~ ### printed to the archive
+    ### Addresses: #41798: Nonempty $\ when writing a TAR file produces a
+    ### corrupt TAR file. Must clear out $\ to make sure no garbage is
+    ### printed to the archive
     #~ local $\;
 
     #~ for my $entry ( @{$self->_data} ) {
-        #~ ### entries to be written to the tarfile ###
+        ### entries to be written to the tarfile ###
         #~ my @write_me;
 
-        #~ ### only now will we change the object to reflect the current state
-        #~ ### of the name and prefix fields -- this needs to be limited to
-        #~ ### write() only!
+        ### only now will we change the object to reflect the current state
+        ### of the name and prefix fields -- this needs to be limited to
+        ### write() only!
         #~ my $clone = $entry->clone;
 
 
-        #~ ### so, if you don't want use to use the prefix, we'll stuff
-        #~ ### everything in the name field instead
+        ### so, if you don't want use to use the prefix, we'll stuff
+        ### everything in the name field instead
         #~ if( $DO_NOT_USE_PREFIX ) {
 
-            #~ ### you might have an extended prefix, if so, set it in the clone
-            #~ ### XXX is ::Unix right?
+            ### you might have an extended prefix, if so, set it in the clone
+            ### XXX is ::Unix right?
             #~ $clone->name( length $ext_prefix
                             #~ ? File::Spec::Unix->catdir( $ext_prefix,
                                                         #~ $clone->full_path)
                             #~ : $clone->full_path );
             #~ $clone->prefix( '' );
 
-        #~ ### otherwise, we'll have to set it properly -- prefix part in the
-        #~ ### prefix and name part in the name field.
+        ### otherwise, we'll have to set it properly -- prefix part in the
+        ### prefix and name part in the name field.
         #~ }
         #~ else {
 
-            #~ ### split them here, not before!
+            ### split them here, not before!
             #~ my ($prefix,$name) = $clone->_prefix_and_file( $clone->full_path );
 
-            #~ ### you might have an extended prefix, if so, set it in the clone
-            #~ ### XXX is ::Unix right?
+            ### you might have an extended prefix, if so, set it in the clone
+            ### XXX is ::Unix right?
             #~ $prefix = File::Spec::Unix->catdir( $ext_prefix, $prefix )
                 #~ if length $ext_prefix;
 
@@ -1302,13 +1302,13 @@ sub write {
             #~ $clone->name( $name );
         #~ }
 
-        #~ ### names are too long, and will get truncated if we don't add a
-        #~ ### '@LongLink' file...
+        ### names are too long, and will get truncated if we don't add a
+        ### '@LongLink' file...
         #~ my $make_longlink = (   length($clone->name)    > NAME_LENGTH or
                                 #~ length($clone->prefix)  > PREFIX_LENGTH
                             #~ ) || 0;
 
-        #~ ### perhaps we need to make a longlink file?
+        ### perhaps we need to make a longlink file?
         #~ if( $make_longlink ) {
             #~ my $longlink = Archive::Tar::File->new(
                             #~ data => LONGLINK_NAME,
@@ -1327,22 +1327,22 @@ sub write {
 
         #~ push @write_me, $clone;
 
-        #~ ### write the one, optionally 2 a::t::file objects to the handle
+        ### write the one, optionally 2 a::t::file objects to the handle
         #~ for my $clone (@write_me) {
 
-            #~ ### if the file is a symlink, there are 2 options:
-            #~ ### either we leave the symlink intact, but then we don't write any
-            #~ ### data OR we follow the symlink, which means we actually make a
-            #~ ### copy. if we do the latter, we have to change the TYPE of the
-            #~ ### clone to 'FILE'
+            ### if the file is a symlink, there are 2 options:
+            ### either we leave the symlink intact, but then we don't write any
+            ### data OR we follow the symlink, which means we actually make a
+            ### copy. if we do the latter, we have to change the TYPE of the
+            ### clone to 'FILE'
             #~ my $link_ok =  $clone->is_symlink && $Archive::Tar::FOLLOW_SYMLINK;
             #~ my $data_ok = !$clone->is_symlink && $clone->has_content;
 
-            #~ ### downgrade to a 'normal' file if it's a symlink we're going to
-            #~ ### treat as a regular file
+            ### downgrade to a 'normal' file if it's a symlink we're going to
+            ### treat as a regular file
             #~ $clone->_downgrade_to_plainfile if $link_ok;
 
-            #~ ### get the header for this block
+            ### get the header for this block
             #~ my $header = $self->_format_tar_entry( $clone );
             #~ unless( $header ) {
                 #~ $self->_error(q[Could not format header for: ] .
@@ -1363,23 +1363,23 @@ sub write {
                     #~ return;
                 #~ }
 
-                #~ ### pad the end of the clone if required ###
+                ### pad the end of the clone if required ###
                 #~ print $handle TAR_PAD->( $clone->size ) if $clone->size % BLOCK
             #~ }
 
         #~ } ### done writing these entries
     #~ }
 
-    #~ ### write the end markers ###
+    ### write the end markers ###
     #~ print $handle TAR_END x 2 or
             #~ return $self->_error( qq[Could not write tar end markers] );
 
-    #~ ### did you want it written to a file, or returned as a string? ###
+    ### did you want it written to a file, or returned as a string? ###
     #~ my $rv =  length($file) ? 1
                         #~ : $HAS_PERLIO ? $dummy
                         #~ : do { seek $handle, 0, 0; local $/; <$handle> };
 
-    #~ ### make sure to close the handle if we created it
+    ### make sure to close the handle if we created it
     #~ if ( $file ne $handle ) {
         #~ unless( close $handle ) {
             #~ $self->_error( qq[Could not write tar] );
@@ -1399,25 +1399,25 @@ sub _format_tar_entry {
     #~ my $file    = $entry->name;
     #~ my $prefix  = $entry->prefix; $prefix = '' unless defined $prefix;
 
-    #~ ### remove the prefix from the file name
-    #~ ### not sure if this is still needed --kane
-    #~ ### no it's not -- Archive::Tar::File->_new_from_file will take care of
-    #~ ### this for us. Even worse, this would break if we tried to add a file
-    #~ ### like x/x.
-    #~ #if( length $prefix ) {
-    #~ #    $file =~ s/^$match//;
-    #~ #}
+    ### remove the prefix from the file name
+    ### not sure if this is still needed --kane
+    ### no it's not -- Archive::Tar::File->_new_from_file will take care of
+    ### this for us. Even worse, this would break if we tried to add a file
+    ### like x/x.
+    #if( length $prefix ) {
+    #    $file =~ s/^$match//;
+    #}
 
     #~ $prefix = File::Spec::Unix->catdir($ext_prefix, $prefix)
                 #~ if length $ext_prefix;
 
-    #~ ### not sure why this is... ###
+    ### not sure why this is... ###
     #~ my $l = PREFIX_LENGTH; # is ambiguous otherwise...
     #~ substr ($prefix, 0, -$l) = "" if length $prefix >= PREFIX_LENGTH;
 
     #~ my $f1 = "%06o"; my $f2  = $ZERO_PAD_NUMBERS ? "%011o" : "%11o";
 
-    #~ ### this might be optimizable with a 'changed' flag in the file objects ###
+    ### this might be optimizable with a 'changed' flag in the file objects ###
     #~ my $tar = pack (
         #~ PACK,
         #~ $file,
@@ -1437,7 +1437,7 @@ sub _format_tar_entry {
         #~ ($no_prefix ? '' : $prefix)
     #~ );
 
-    #~ ### add the checksum ###
+    ### add the checksum ###
     #~ my $checksum_fmt = $ZERO_PAD_NUMBERS ? "%06o\0" : "%06o\0";
     #~ substr($tar,148,7) = sprintf("%6o\0", unpack("%16C*",$tar));
 
@@ -1473,9 +1473,9 @@ sub add_files {
     #~ my @rv;
     #~ for my $file ( @files ) {
 
-        #~ ### you passed an Archive::Tar::File object
-        #~ ### clone it so we don't accidentally have a reference to
-        #~ ### an object from another archive
+        ### you passed an Archive::Tar::File object
+        ### clone it so we don't accidentally have a reference to
+        ### an object from another archive
         #~ if( UNIVERSAL::isa( $file,'Archive::Tar::File' ) ) {
             #~ push @rv, $file->clone;
             #~ next;
@@ -1599,8 +1599,8 @@ sub add_data {
             #~ $self->{_longmess} = $longmess;
         #~ }
 
-        #~ ### set Archive::Tar::WARN to 0 to disable printing
-        #~ ### of errors
+        ### set Archive::Tar::WARN to 0 to disable printing
+        ### of errors
         #~ if( $WARN ) {
             #~ carp $DEBUG ? $longmess : $msg;
         #~ }
@@ -1669,10 +1669,10 @@ method setcwd($cwd) {
 #~ to be the C<gzip> compression level (between 1 and 9), but the use of
 #~ constants is preferred:
 
-  #~ # write a gzip compressed file
+  # write a gzip compressed file
   #~ Archive::Tar->create_archive( 'out.tgz', COMPRESS_GZIP, @filelist );
 
-  #~ # write a bzip compressed file
+  # write a bzip compressed file
   #~ Archive::Tar->create_archive( 'out.tbz', COMPRESS_BZIP, @filelist );
 
 #~ Note that when you pass in a filehandle, the compression argument
@@ -1726,7 +1726,7 @@ method create_archive($file, $gzip = 0, *@files) {
 
         #~ $f->extract or warn "Extraction failed";
 
-        #~ # ....
+        # ....
     #~ }
 
 #~ =cut
@@ -1752,9 +1752,9 @@ method iter($filename, $compressed = 0, *%opts) {
         @data = $tarfile.list if $tarfile ~~ Positional;
                 #~ if($Archive::Tar::RESOLVE_SYMLINK!~/none/){
                     #~ foreach(@data){
-                        #~ #may refine this heuristic for ON_UNIX?
+                        #may refine this heuristic for ON_UNIX?
                         #~ if($_->linkname){
-                            #~ #is there a better slot to store/share it ?
+                            #is there a better slot to store/share it ?
                             #~ $_->{'_archive'} = $CONSTRUCT_ARGS;
                         #~ }
                     #~ }
@@ -1766,7 +1766,7 @@ method iter($filename, $compressed = 0, *%opts) {
         ### data is exhausted, free the filehandle
         #~ undef $handle;
                 #~ if(@$CONSTRUCT_ARGS == 4){
-                    #~ #free archive in memory
+                    #free archive in memory
                     #~ undef $CONSTRUCT_ARGS->[-1];
                 #~ }
         return;
@@ -1894,17 +1894,17 @@ sub _symlinks_resolver($src, $trg) {
     pop @src; #strip out current object name
     #~ if(@trg and $trg[0] eq '') {
         #~ shift @trg;
-        #~ #restart path from scratch
+        #restart path from scratch
         #~ @src = ( );
     #~ }
     #~ foreach my $part ( @trg ) {
         #~ next if $part eq '.'; #ignore current
         #~ if($part eq '..'){
-            #~ #got to parent
+            #got to parent
             #~ pop @src;
         #~ }
         #~ else {
-            #~ #append it
+            #append it
             #~ push @src, $part;
         #~ }
     #~ }
@@ -2212,7 +2212,7 @@ sub _symlinks_resolver($src, $trg) {
 
 #~ For example, if you add a Unicode string like
 
-    #~ # Problem
+    # Problem
     #~ $tar->add_data('file.txt', "Euro: \x{20AC}");
 
 #~ then there will be a problem later when the tarfile gets written out
@@ -2246,7 +2246,7 @@ sub _symlinks_resolver($src, $trg) {
     #~ use Encode;
     #~ my $data = $tar->get_content();
 
-    #~ # Make it a Unicode string
+    # Make it a Unicode string
     #~ $data = decode('utf8', $data);
 
 #~ There is no easy way to provide this functionality in C<Archive::Tar>,

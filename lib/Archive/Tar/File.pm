@@ -6,15 +6,15 @@ class Archive::Tar::File;
 #~ use File::Spec          ();
 #~ use File::Basename      ();
 
-#~ ### avoid circular use, so only require;
+### avoid circular use, so only require;
 #~ require Archive::Tar;
 use Archive::Tar::Constant;
 
 #~ use vars qw[@ISA $VERSION];
-#~ #@ISA        = qw[Archive::Tar];
+#@ISA        = qw[Archive::Tar];
 #~ $VERSION    = '2.00';
 
-#~ ### set value to 1 to oct() it during the unpack ###
+### set value to 1 to oct() it during the unpack ###
 
 my $tmpl = [
         'name'        , 0,   # string					A100
@@ -34,7 +34,7 @@ my $tmpl = [
         'devminor'    , 1,   # octal					A8
         'prefix'      , 0,	#					A155 x 12
 
-#~ ### end UNPACK items ###
+### end UNPACK items ###
         'raw'         , 0,   # the raw data chunk
         'data'        , 0,   # the data associated with the file --
                            # This  might be very memory intensive
@@ -200,7 +200,7 @@ has buf8 $.data is rw = buf8.new;
     #~ return $obj;
 #~ }
 
-#~ ### copies the data, creates a clone ###
+### copies the data, creates a clone ###
 #~ sub clone {
     #~ my $self = shift;
     #~ return bless { %$self }, ref $self;
@@ -256,7 +256,7 @@ method new_from_chunk($chunk, *@args) {
     #~ my $class       = shift;
     #~ my $path        = shift;
 
-    #~ ### path has to at least exist
+    ### path has to at least exist
     #~ return unless defined $path;
 
     #~ my $type        = __PACKAGE__->_filetype($path);
@@ -267,17 +267,17 @@ method new_from_chunk($chunk, *@args) {
             #~ my $fh = IO::File->new;
 
             #~ unless( $fh->open($path) ) {
-                #~ ### dangling symlinks are fine, stop reading but continue
-                #~ ### creating the object
+                ### dangling symlinks are fine, stop reading but continue
+                ### creating the object
                 #~ last READ if $type == SYMLINK;
 
-                #~ ### otherwise, return from this function --
-                #~ ### anything that's *not* a symlink should be
-                #~ ### resolvable
+                ### otherwise, return from this function --
+                ### anything that's *not* a symlink should be
+                ### resolvable
                 #~ return;
             #~ }
 
-            #~ ### binmode needed to read files properly on win32 ###
+            ### binmode needed to read files properly on win32 ###
             #~ binmode $fh;
             #~ $data = do { local $/; <$fh> };
             #~ close $fh;
@@ -288,40 +288,40 @@ method new_from_chunk($chunk, *@args) {
     #~ my %hash        = map { shift(@items), $_ } (lstat $path)[2,4,5,7,9];
 
     #~ if (ON_VMS) {
-        #~ ### VMS has two UID modes, traditional and POSIX.  Normally POSIX is
-        #~ ### not used.  We currently do not have an easy way to see if we are in
-        #~ ### POSIX mode.  In traditional mode, the UID is actually the VMS UIC.
-        #~ ### The VMS UIC has the upper 16 bits is the GID, which in many cases
-        #~ ### the VMS UIC will be larger than 209715, the largest that TAR can
-        #~ ### handle.  So for now, assume it is traditional if the UID is larger
-        #~ ### than 0x10000.
+        ### VMS has two UID modes, traditional and POSIX.  Normally POSIX is
+        ### not used.  We currently do not have an easy way to see if we are in
+        ### POSIX mode.  In traditional mode, the UID is actually the VMS UIC.
+        ### The VMS UIC has the upper 16 bits is the GID, which in many cases
+        ### the VMS UIC will be larger than 209715, the largest that TAR can
+        ### handle.  So for now, assume it is traditional if the UID is larger
+        ### than 0x10000.
 
         #~ if ($hash{uid} > 0x10000) {
             #~ $hash{uid} = $hash{uid} & 0xFFFF;
         #~ }
 
-        #~ ### The file length from stat() is the physical length of the file
-        #~ ### However the amount of data read in may be more for some file types.
-        #~ ### Fixed length files are read past the logical EOF to end of the block
-        #~ ### containing.  Other file types get expanded on read because record
-        #~ ### delimiters are added.
+        ### The file length from stat() is the physical length of the file
+        ### However the amount of data read in may be more for some file types.
+        ### Fixed length files are read past the logical EOF to end of the block
+        ### containing.  Other file types get expanded on read because record
+        ### delimiters are added.
 
         #~ my $data_len = length $data;
         #~ $hash{size} = $data_len if $hash{size} < $data_len;
 
     #~ }
-    #~ ### you *must* set size == 0 on symlinks, or the next entry will be
-    #~ ### though of as the contents of the symlink, which is wrong.
-    #~ ### this fixes bug #7937
+    ### you *must* set size == 0 on symlinks, or the next entry will be
+    ### though of as the contents of the symlink, which is wrong.
+    ### this fixes bug #7937
     #~ $hash{size}     = 0 if ($type == DIR or $type == SYMLINK);
     #~ $hash{mtime}    -= TIME_OFFSET;
 
-    #~ ### strip the high bits off the mode, which we don't need to store
+    ### strip the high bits off the mode, which we don't need to store
     #~ $hash{mode}     = STRIP_MODE->( $hash{mode} );
 
 
-    #~ ### probably requires some file path munging here ... ###
-    #~ ### name and prefix are set later
+    ### probably requires some file path munging here ... ###
+    ### name and prefix are set later
     #~ my $obj = {
         #~ %hash,
         #~ name        => '',
@@ -342,7 +342,7 @@ method new_from_chunk($chunk, *@args) {
 
     #~ bless $obj, $class;
 
-    #~ ### fix up the prefix and file from the path
+    ### fix up the prefix and file from the path
     #~ my($prefix,$file) = $obj->_prefix_and_file( $path );
     #~ $obj->prefix( $prefix );
     #~ $obj->name( $file );
@@ -376,11 +376,11 @@ method new_from_chunk($chunk, *@args) {
         #~ prefix      => '',
     #~ };
 
-    #~ ### overwrite with user options, if provided ###
+    ### overwrite with user options, if provided ###
     #~ if( $opt and ref $opt eq 'HASH' ) {
         #~ for my $key ( keys %$opt ) {
 
-            #~ ### don't write bogus options ###
+            ### don't write bogus options ###
             #~ next unless exists $obj->{$key};
             #~ $obj->{$key} = $opt->{$key};
         #~ }
@@ -388,7 +388,7 @@ method new_from_chunk($chunk, *@args) {
 
     #~ bless $obj, $class;
 
-    #~ ### fix up the prefix and file from the path
+    ### fix up the prefix and file from the path
     #~ my($prefix,$file) = $obj->_prefix_and_file( $path );
     #~ $obj->prefix( $prefix );
     #~ $obj->name( $file );
@@ -403,15 +403,15 @@ method new_from_chunk($chunk, *@args) {
     #~ my ($vol, $dirs, $file) = File::Spec->splitpath( $path, $self->is_dir );
     #~ my @dirs = File::Spec->splitdir( $dirs );
 
-    #~ ### so sometimes the last element is '' -- probably when trailing
-    #~ ### dir slashes are encountered... this is of course pointless,
-    #~ ### so remove it
+    ### so sometimes the last element is '' -- probably when trailing
+    ### dir slashes are encountered... this is of course pointless,
+    ### so remove it
     #~ pop @dirs while @dirs and not length $dirs[-1];
 
-    #~ ### if it's a directory, then $file might be empty
+    ### if it's a directory, then $file might be empty
     #~ $file = pop @dirs if $self->is_dir and not length $file;
 
-    #~ ### splitting ../ gives you the relative path in native syntax
+    ### splitting ../ gives you the relative path in native syntax
     #~ map { $_ = '..' if $_  eq '-' } @dirs if ON_VMS;
 
     #~ my $prefix = File::Spec::Unix->catdir(
@@ -440,15 +440,15 @@ method new_from_chunk($chunk, *@args) {
 
     #~ return CHARDEV  if (-c _);		# Character special
 
-    #~ ### shouldn't happen, this is when making archives, not reading ###
+    ### shouldn't happen, this is when making archives, not reading ###
     #~ return LONGLINK if ( $file eq LONGLINK_NAME );
 
     #~ return UNKNOWN;		            # Something else (like what?)
 
 #~ }
 
-#~ ### this method 'downgrades' a file to plain file -- this is used for
-#~ ### symlinks when FOLLOW_SYMLINKS is true.
+### this method 'downgrades' a file to plain file -- this is used for
+### symlinks when FOLLOW_SYMLINKS is true.
 #~ sub _downgrade_to_plainfile {
     #~ my $entry = shift;
     #~ $entry->type( FILE );
@@ -486,10 +486,10 @@ method new_from_chunk($chunk, *@args) {
 #~ sub full_path {
     #~ my $self = shift;
 
-    #~ ### if prefix field is empty
+    ### if prefix field is empty
     #~ return $self->name unless defined $self->prefix and length $self->prefix;
 
-    #~ ### or otherwise, catfile'd
+    ### or otherwise, catfile'd
     #~ return File::Spec::Unix->catfile( $self->prefix, $self->name );
 #~ }
 
@@ -509,11 +509,11 @@ method validate {
     ### don't know why this one is different from the one we /write/ ###
     subbuf-rw($raw, 148, 8) = buf8.new(0x20 xx 8);
 
-    #~ ### bug #43513: [PATCH] Accept wrong checksums from SunOS and HP-UX tar
-    #~ ### like GNU tar does. See here for details:
-    #~ ### http://www.gnu.org/software/tar/manual/tar.html#SEC139
-    #~ ### so we do both a signed AND unsigned validate. if one succeeds, that's
-    #~ ### good enough
+    ### bug #43513: [PATCH] Accept wrong checksums from SunOS and HP-UX tar
+    ### like GNU tar does. See here for details:
+    ### http://www.gnu.org/software/tar/manual/tar.html#SEC139
+    ### so we do both a signed AND unsigned validate. if one succeeds, that's
+    ### good enough
     #~ return (   (unpack ("%16C*", $raw) == $self->chksum)
             #~ or (unpack ("%16c*", $raw) == $self->chksum)) ? 1 : 0;
 }
