@@ -19,6 +19,7 @@ has $._error is rw = '';
 #~ use File::Spec          ();
 #~ use File::Spec::Unix    ();
 #~ use File::Path          ();
+use Digest::MD5;
 
 use Archive::Tar::File;
 use Archive::Tar::Constant;
@@ -395,23 +396,22 @@ method _read_tar($handle, *%opts) {
             ### skip this entry if we're filtering
 
             if $md5 {			# cdrake
-                #~ $ctx = Digest::MD5->new;	# cdrake
-                #~ $skip=5;		# cdrake
+                $ctx  = Digest::MD5.new;	# cdrake
+                $skip = 5;		# cdrake
             }
-            #~ elsif ($filter && $entry->name !~ $filter) {
-                #~ $skip = 1;
-
-            #~ }
-            #~ elsif ($filter_cb && ! $filter_cb->($entry)) {
-                #~ $skip = 2;
+            elsif $filter && $entry.name !~~ $filter {
+                $skip = 1;
+            }
+            elsif $filter_cb && !$filter_cb($entry) {
+                $skip = 2;
 
                 ### skip this entry if it's a pax header. This is a special file added
                 ### by, among others, git-generated tarballs. It holds comments and is
                 ### not meant for extracting. See #38932: pax_global_header extracted
-            #~ }
-            #~ elsif ( $entry->name eq PAX_HEADER or $entry->type =~ /^(x|g)$/ ) {
-                #~ $skip = 3;
-            #~ }
+            }
+            elsif $entry.name eq PAX_HEADER or $entry.type ~~ /^[x|g]$/ {
+                $skip = 3;
+            }
 
             #~ if ($skip) {
                 #
