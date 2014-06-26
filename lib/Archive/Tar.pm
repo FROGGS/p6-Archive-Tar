@@ -975,18 +975,15 @@ sub _extract_special_file_as_plain_file {
 
 #~ =cut
 
-sub list_files {
-    #~ my $self = shift;
-    #~ my $aref = shift || [ ];
+method list_files(@aref?) {
+    unless self._data {
+        self.read() or return;
+    }
 
-    #~ unless( $self->_data ) {
-        #~ $self->read() or return;
-    #~ }
-
-    #~ if( @$aref == 0 or ( @$aref == 1 and $aref->[0] eq 'name' ) ) {
-        #~ return map { $_->full_path } @{$self->_data};
-    #~ }
-    #~ else {
+    if @aref == 0 or ( @aref == 1 and @aref[0] eq 'name' ) {
+        return self._data.map( *.full_path );
+    }
+    else {
         #my @rv;
         #for my $obj ( @{$self->_data} ) {
         #    push @rv, { map { $_ => $obj->$_() } @$aref };
@@ -995,10 +992,11 @@ sub list_files {
 
         ### this does the same as the above.. just needs a +{ }
         ### to make sure perl doesn't confuse it for a block
-        #~ return map {    my $o=$_;
-                        #~ +{ map { $_ => $o->$_() } @$aref }
-                    #~ } @{$self->_data};
-    #~ }
+        return self._data.map({
+            my $o = $_;
+            @aref.map({ $_ => $o."$_"() })
+        })
+    }
 }
 
 sub _find_entry {

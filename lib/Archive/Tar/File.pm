@@ -482,15 +482,13 @@ method new_from_chunk($chunk, *@args) {
 
 #~ =cut
 
-#~ sub full_path {
-    #~ my $self = shift;
-
+method full_path {
     ### if prefix field is empty
-    #~ return $self->name unless defined $self->prefix and length $self->prefix;
+    return self.name unless self.prefix;
 
     ### or otherwise, catfile'd
-    #~ return File::Spec::Unix->catfile( $self->prefix, $self->name );
-#~ }
+    return File::Spec::Unix.catfile( self.prefix, self.name );
+}
 
 
 #~ =head2 $bool = $file->validate
