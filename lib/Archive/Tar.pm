@@ -19,7 +19,6 @@ has $._error is rw = '';
 #~ use File::Spec          ();
 #~ use File::Spec::Unix    ();
 #~ use File::Path          ();
-use Digest::MD5;
 
 use Archive::Tar::File;
 use Archive::Tar::Constant;
@@ -262,7 +261,7 @@ method _get_handle($file is copy, $compress = 0, $mode = READ_ONLY( ZLIB )) {
         ### if you asked for compression, if you wanted to read or the gzip
         ### magic number is present (redundant with read)
         elsif ZLIB and ($compress or MODE_READ($mode) or $magic ~~ GZIP_MAGIC_NUM) {
-            say "$?FILE:$?LINE";
+            die "$?FILE:$?LINE";
             #~ $fh = IO::Zlib->new;
 
             #~ unless( $fh->open( $file, $mode ) ) {
@@ -272,8 +271,6 @@ method _get_handle($file is copy, $compress = 0, $mode = READ_ONLY( ZLIB )) {
         }
         ### is it plain tar?
         else {
-            say "$?FILE:$?LINE $mode";
-
             unless $fh = $file.IO.open( |$mode ) {
                 self._error = "Could not create filehandle for '$file': $!";
                 return;
@@ -308,7 +305,6 @@ method _read_tar($handle, *%opts) {
     my $data;
 
     LOOP: while $chunk = $handle.read( HEAD ) {
-        say "$?FILE:$?LINE";
         ### IO::Zlib doesn't support this yet
         my $offset;
         #~ if ( ref($handle) ne 'IO::Zlib' ) {
@@ -364,7 +360,6 @@ method _read_tar($handle, *%opts) {
 
             unless $entry = Archive::Tar::File.new_from_chunk( $chunk, |%extra_args ) {
                 self._error = "Couldn't read chunk at offset $offset";
-                say "$?FILE:$?LINE: $entry";
                 next LOOP;
             }
         }
@@ -395,7 +390,7 @@ method _read_tar($handle, *%opts) {
             ### skip this entry if we're filtering
 
             if $md5 {			# cdrake
-                $ctx  = Digest::MD5.new;	# cdrake
+                $ctx  = ::('Digest::MD5').new;	# cdrake
                 $skip = 5;		# cdrake
             }
             elsif $filter && $entry.name !~~ $filter {
@@ -441,10 +436,12 @@ method _read_tar($handle, *%opts) {
                 ### can't do lazy loading since IO::Zlib doesn't support 'seek'
                 ### this is because Compress::Zlib doesn't support it =/
                 ### this reads in the whole data in one read() call.
-                if $data = $handle.read( $block ) and $data.bytes < $block {
+                my $_data;
+                if $block and $_data = $handle.read( $block ) and $_data.bytes < $block {
                     self._error = "Read error on tarfile (missing data) '{$entry.full_path}' at offset $offset";
                     next LOOP;
                 }
+                $data ~= $_data if $_data;
                 ### throw away trailing garbage ###
                 subbuf-rw($data, $entry.size) = buf8.new if defined $data;
             }
@@ -480,8 +477,9 @@ method _read_tar($handle, *%opts) {
         ### set the name for the next entry if this is a @LongLink;
         ### this is one ugly hack =/ but needed for direct extraction
         if $entry.is_longlink {
-            $real_name = $data;
-            next LOOP;
+            $real_name = $data.decode;
+            #~ next LOOP; # XXX this misses the exception handler of the label
+            next;
         }
         elsif defined $real_name {
             $entry.name   = $real_name;
@@ -490,17 +488,17 @@ method _read_tar($handle, *%opts) {
         }
 
         if $filter && $entry.name !~~ $filter {
-            next LOOP;
+            next;
         }
         elsif $filter_cb && !$filter_cb($entry) {
-            next LOOP;
+            next;
 
             ### skip this entry if it's a pax header. This is a special file added
             ### by, among others, git-generated tarballs. It holds comments and is
             ### not meant for extracting. See #38932: pax_global_header extracted
         }
         elsif $entry.name eq PAX_HEADER or $entry.type ~~ /^[x|g]$/ {
-            next LOOP;
+            next;
         }
 
         if $extract && !$entry.is_longlink
@@ -510,7 +508,7 @@ method _read_tar($handle, *%opts) {
         }
 
         ### Guard against tarfiles with garbage at the end
-        last LOOP if $entry.name eq '';
+        last if $entry.name eq '';
 
         ### push only the name on the rv if we're extracting
         ### -- for extract_archive
@@ -518,7 +516,7 @@ method _read_tar($handle, *%opts) {
 
         if $limit {
             $count-- unless $entry.is_longlink || $entry.is_dir;
-            last LOOP unless $count;
+            last unless $count;
         }
         NEXT {
             undefine $data;

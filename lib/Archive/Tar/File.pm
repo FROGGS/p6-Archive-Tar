@@ -223,9 +223,12 @@ method new_from_chunk($chunk, *@args) {
         if $s ne 'size' && /^(<-[\c0]>*)/ {
             $t = $0.Str.trim;
         }
-        $s => ($v ?? $t ?? :8(~$t) !! 0 !! $t)				# cdrake
+        else {
+            $t.=Str;
+        }
+        $s => ($v ?? $t ?? :8($t) !! 0 !! $t)				# cdrake
     });
-    say "$?FILE:$?LINE " ~ %entry.gist;
+    # say "$?FILE:$?LINE " ~ %entry.gist;
     if substr(%entry<size>, 0, 1) eq "\x80" {	# binary size extension for files >8gigs (> octal 77777777777777)	# cdrake
       my @sz       = %entry<size>.unpack("aCSNN");
       # Use the low 80 bits (should use the upper 15 as well, but as at year 2011,
@@ -696,15 +699,15 @@ method get_content_by_ref is rw {
 #~ =cut
 
 #stupid perl5.5.3 needs to warn if it's not numeric
-method is_file     { FILE      == self.type }
-method is_dir      { DIR       == self.type }
-method is_hardlink { HARDLINK  == self.type }
-method is_symlink  { SYMLINK   == self.type }
-method is_chardev  { CHARDEV   == self.type }
-method is_blockdev { BLOCKDEV  == self.type }
-method is_fifo     { FIFO      == self.type }
-method is_socket   { SOCKET    == self.type }
-method is_unknown  { UNKNOWN   == self.type }
+method is_file     { FILE      eq self.type }
+method is_dir      { DIR       eq self.type }
+method is_hardlink { HARDLINK  eq self.type }
+method is_symlink  { SYMLINK   eq self.type }
+method is_chardev  { CHARDEV   eq self.type }
+method is_blockdev { BLOCKDEV  eq self.type }
+method is_fifo     { FIFO      eq self.type }
+method is_socket   { SOCKET    eq self.type }
+method is_unknown  { UNKNOWN   eq self.type }
 method is_longlink { LONGLINK  eq self.type }
 method is_label    { LABEL     eq self.type }
 
