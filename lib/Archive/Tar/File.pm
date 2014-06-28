@@ -220,6 +220,9 @@ method new_from_chunk($chunk, *@args) {
     my %entry = $chunk.unpack( UNPACK ).map({
         my ($s, $v) = $tmpl[++$i], $tmpl[++$i];	# cdrake
         my $t = $_;
+        if $s eq 'name' | 'linkname' | 'magic' | 'uname' | 'gname' {
+            $_ = utf8.new(.ords).decode;
+        }
         if $s ne 'size' && /^(<-[\c0]>*)/ {
             $t = $0.Str.trim;
         }
