@@ -114,8 +114,7 @@ method new(*@files) {
 
 submethod BUILD(*@files) {
     if @files && !self.read( |@files ) {
-        self._error = 'No data could be read from file';
-        return;
+        fail 'No data could be read from file';
     }
     self
 }
@@ -186,8 +185,7 @@ submethod BUILD(*@files) {
 
 method read($file, $gzip = 0, *%opts) {
     if not defined $file {
-        self._error( qq[No file to read from!] );
-        return;
+        fail 'No file to read from!'
     }
     else {
         self._file = $file;
@@ -196,12 +194,7 @@ method read($file, $gzip = 0, *%opts) {
     my $handle = self._get_handle($file, $gzip, READ_ONLY( ZLIB ) )
                     or return;
 
-    my $data = self._read_tar( $handle, |%opts ) or return;
-
-    self._data = $data;
-
-    #~ return wantarray ? @$data : scalar @$data;
-    $data
+    self._data = self._read_tar( $handle, |%opts );
 }
 
 method _get_handle($file is copy, $compress = 0, $mode = READ_ONLY( ZLIB )) {
@@ -219,8 +212,7 @@ method _get_handle($file is copy, $compress = 0, $mode = READ_ONLY( ZLIB )) {
         my $magic = '';
         if MODE_READ($mode) {
             my $tmp = $file.IO.open(:r) or do {
-                self._error( qq[Could not open '$file' for reading: $!] );
-                return;
+                fail "Could not open '$file' for reading: $!";
             };
 
             ### read the first 4 bites of the file to figure out which class to
@@ -318,16 +310,14 @@ method _read_tar($handle, *%opts) {
 
         unless $read++  {
             my $gzip = GZIP_MAGIC_NUM;
-            if $chunk.decode ~~ GZIP_MAGIC_NUM {
-                self._error = 'Cannot read compressed format in tar-mode';
-                return;
+            if $chunk[0,1] ~~ any @(GZIP_MAGIC_NUM) {
+                fail 'Cannot read compressed format in tar-mode';
             }
 
             ### size is < HEAD, which means a corrupted file, as the minimum
             ### length is _at least_ HEAD
             if $chunk.bytes != HEAD {
-                self._error = 'Cannot read enough bytes from the tarfile';
-                return;
+                fail 'Cannot read enough bytes from the tarfile';
             }
         }
 
@@ -673,13 +663,11 @@ method _extract_file($entry, $alt?) {
     my $dir;
     ### is $name an absolute path? ###
     if $vol || $dirs.path.is-absolute {
-
         ### absolute names are not allowed to be in tarballs under
         ### strict mode, so only allow it if a user tells us to do it
         if !$alt.defined && !$INSECURE_EXTRACT_MODE {
-            self._error = "Entry '{$entry.full_path}' is an absolute path. "
-                        ~ "Not extracting absolute paths under SECURE EXTRACT MODE";
-            return;
+            fail "Entry '{$entry.full_path}' is an absolute path. "
+               ~ "Not extracting absolute paths under SECURE EXTRACT MODE";
         }
 
         ### user asked us to, it's fine.
@@ -766,15 +754,13 @@ method _extract_file($entry, $alt?) {
         ### catdir() returns undef if the path is longer than 255 chars on
         ### older VMS systems.
         unless $dir {
-            self._error = "Could not compose a path for '$dirs'";
-            return;
+            fail "Could not compose a path for '$dirs'";
         }
 
     }
 
     if $dir.IO.e && !$dir.IO.d {
-        self._error = "'$dir' exists, but it's not a directory!";
-        return;
+        fail "'$dir' exists, but it's not a directory!";
     }
 
     unless $dir.IO.d {
@@ -804,25 +790,24 @@ method _extract_file($entry, $alt?) {
     say my $full = IO::Spec.catfile( $dir, $file );
 
     if $entry.is_unknown {
-        self._error = "Unknown file type for file '$full'";
-        return;
+        fail "Unknown file type for file '$full'";
     }
 
     if $entry.type.Str.chars && $entry.is_file {
         try $full.IO.spurt: $entry.data;
-        self._error = "Could not write data to '$full': $!" if $!;
+        fail "Could not write data to '$full': $!" if $!;
     }
     else {
-        #~ $self->_make_special_file( $entry, $full ) or return;
+        self._make_special_file( $entry, $full ) or return;
     }
 
     ### only update the timestamp if it's not a symlink; that will change the
     ### timestamp of the original. This addresses bug #33669: Could not update
     ### timestamp warning on symlinks
-    #~ if( not -l $full ) {
-        #~ utime time, $entry->mtime - TIME_OFFSET, $full or
-            #~ $self->_error( qq[Could not update timestamp] );
-    #~ }
+    unless $full.IO.l {
+        #~ utime time, $entry.mtime - TIME_OFFSET, $full or
+            #~ self._error = "Could not update timestamp";
+    }
 
     #~ if( $CHOWN && CAN_CHOWN->() and not -l $full ) {
         #~ chown $entry->uid, $entry->gid, $full or
@@ -1664,12 +1649,12 @@ method create_archive($file, $gzip = 0, *@files) {
     return unless defined $file;
 
     unless @files {
-        return self._error( qq[Cowardly refusing to create empty archive!] );
+        fail 'Cowardly refusing to create empty archive!';
     }
 
     my $tar = self.new;
     $tar.add_files( |@files );
-    return $tar.write( $file, $gzip );
+    $tar.write( $file, $gzip )
 }
 
 #~ =head2 Archive::Tar->iter( $filename, [ $compressed, {opt => $val} ] )
@@ -1763,9 +1748,9 @@ method list_archive($file, $gzip = 0) {
     return unless defined $file;
 
     my $tar = self.new($file, $gzip);
-    return unless $tar;
+    return $tar if $tar ~~ Failure;
 
-    return $tar.list_files( $file, $gzip );
+    $tar.list_files( $file, $gzip )
 }
 
 #~ =head2 Archive::Tar->extract_archive($file, $compressed)
@@ -1785,9 +1770,10 @@ method list_archive($file, $gzip = 0) {
 method extract_archive($file, $gzip = 0) {
     return unless defined $file;
 
-    my $tar = self.new or return;
+    my $tar = self.new;
+    return $tar if $tar ~~ Failure;
 
-    return $tar.read( $file, $gzip, :extract );
+    $tar.read( $file, $gzip, :extract )
 }
 
 #~ =head2 $bool = Archive::Tar->has_io_string

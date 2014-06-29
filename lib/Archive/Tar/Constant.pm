@@ -58,6 +58,7 @@ sub EXPORT(|) {
     %EXPORT<PREFIX_LENGTH>  = 155;
 
     #~ %EXPORT<TIME_OFFSET>    = ($*DISTRO.name eq "MacOS") ? Time::Local::timelocal(0,0,0,1,0,70) : 0;
+    %EXPORT<TIME_OFFSET>    = 0;
     %EXPORT<MAGIC>          = "ustar";
     %EXPORT<TAR_VERSION>    = "00";
     %EXPORT<LONGLINK_NAME>  = '././@LongLink';
@@ -73,7 +74,8 @@ sub EXPORT(|) {
                                 %*ENV<PERL5_AT_NO_BZIP> || +not so $!
                             };
 
-    %EXPORT<GZIP_MAGIC_NUM> = anon regex { ^ [ "\o37\o213" | "\o37\o235" ] };
+    #~ %EXPORT<GZIP_MAGIC_NUM> = anon regex { ^ [ "\o37\o213" | "\o37\o235" ] };
+    %EXPORT<GZIP_MAGIC_NUM> = [0o37, 0o213], [0o37, 0o235];
     %EXPORT<BZIP_MAGIC_NUM> = anon regex { ^ BZh\d };
 
     #~ %EXPORT<CAN_CHOWN>      = sub { ($> == 0 and $*DISTRO.name ne "MacOS" and $*DISTRO.name ne "MSWin32") };
