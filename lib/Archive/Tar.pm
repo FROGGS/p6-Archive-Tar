@@ -249,27 +249,18 @@ method _get_handle($file is copy, $compress = 0, $mode = READ_ONLY( ZLIB )) {
                 #~ };
             }
         }
-        ### is it gzip?
-        ### if you asked for compression, if you wanted to read or the gzip
-        ### magic number is present (redundant with read)
-        elsif ZLIB and ($compress or MODE_READ($mode) or $magic ~~ GZIP_MAGIC_NUM) {
-            die "$?FILE:$?LINE";
-            #~ $fh = IO::Zlib->new;
-
-            #~ unless( $fh->open( $file, $mode ) ) {
-                #~ $self->_error(qq[Could not create filehandle for '$file': $!]);
-                #~ return;
-            #~ }
-        }
-        ### is it plain tar?
+        ### is it plain tar or gzip?
         else {
             unless $fh = $file.IO.open( |$mode ) {
-                self._error = "Could not create filehandle for '$file': $!";
-                return;
+                fail "Could not create filehandle for '$file': $!";
             }
 
-            ### enable bin mode on tar archives
-            #~ binmode $fh;
+            ### is it gzip?
+            ### if you asked for compression, or the gzip magic number is present
+            if ZLIB and ($compress or $magic[0,1] ~~ any @(GZIP_MAGIC_NUM)) {
+                require Compress::Zlib;
+                $fh = ::('Compress::Zlib::Wrap').new($fh, :gzip);
+            }
         }
     }
 
@@ -309,7 +300,6 @@ method _read_tar($handle, *%opts) {
         #~ }
 
         unless $read++  {
-            my $gzip = GZIP_MAGIC_NUM;
             if $chunk[0,1] ~~ any @(GZIP_MAGIC_NUM) {
                 fail 'Cannot read compressed format in tar-mode';
             }
@@ -334,7 +324,7 @@ method _read_tar($handle, *%opts) {
         ### bytes are NOT null bytes, it's a corrupt header. See:
         ### www.koders.com/c/fidCE473AD3D9F835D690259D60AD5654591D91D5BA.aspx
         ### line 111
-        {   my $nulls = buf8.new(0 xx 12);
+        {   my $nulls = Buf.new(0 xx 12);
             unless $nulls eq $chunk.subbuf( 500, 12 ) {
                 self._error = "Invalid header block at offset $offset";
                 next LOOP;
@@ -416,7 +406,7 @@ method _read_tar($handle, *%opts) {
                     }
                     $amt -= $this;
                     $fsz -= $this;	# cdrake
-                    subbuf-rw($data, $fsz) = buf8.new if $fsz < 0;	# remove external junk prior to md5	# cdrake
+                    subbuf-rw($data, $fsz) = Buf.new if $fsz < 0;	# remove external junk prior to md5	# cdrake
                     $ctx.add($data) if $skip == 5;	# cdrake
                 }
                 $data = $ctx.hexdigest if $skip == 5 && !$entry.is_longlink && !$entry.is_unknown && !$entry.is_label;	# cdrake
@@ -433,7 +423,7 @@ method _read_tar($handle, *%opts) {
                 }
                 $data ~= $_data if $_data;
                 ### throw away trailing garbage ###
-                subbuf-rw($data, $entry.size) = buf8.new if defined $data;
+                subbuf-rw($data, $entry.size) = Buf.new if defined $data;
             }
 
             ### part II of the @LongLink munging -- need to do /after/
@@ -454,7 +444,7 @@ method _read_tar($handle, *%opts) {
 
                 ### cut data + size by that many bytes
                 $entry.size -= $nulls;
-                subbuf-rw($data, $entry.size) = buf8.new;
+                subbuf-rw($data, $entry.size) = Buf.new;
             }
         }
 
@@ -764,12 +754,8 @@ method _extract_file($entry, $alt?) {
     }
 
     unless $dir.IO.d {
-        #~ eval { File::Path::mkpath( $dir, 0, 0777 ) };
-        #~ if( $@ ) {
-            #~ my $fp = $entry->full_path;
-            #~ $self->_error(qq[Could not create directory '$dir' for '$fp': $@]);
-            #~ return;
-        #~ }
+        try mkdir( $dir );
+        fail "Could not create directory '$dir' for '{$entry.full_path}': $!" if $!;
 
         ### XXX chown here? that might not be the same as in the archive
         ### as we're only chown'ing to the owner of the file we're extracting
@@ -783,11 +769,10 @@ method _extract_file($entry, $alt?) {
         #}
     }
 
-    say "$?FILE:$?LINE " ~ $entry.gist;
     ### we're done if we just needed to create a dir ###
     return 1 if $entry.is_dir;
 
-    say my $full = IO::Spec.catfile( $dir, $file );
+    my $full = IO::Spec.catfile( $dir, $file );
 
     if $entry.is_unknown {
         fail "Unknown file type for file '$full'";

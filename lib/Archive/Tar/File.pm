@@ -56,7 +56,7 @@ has $.devmajor  is rw;
 has $.devminor  is rw;
 has $.prefix    is rw;
 has $.raw       is rw;
-has buf8 $.data is rw = buf8.new;
+has Buf $.data  is rw = Buf.new;
 
 #~ =head1 NAME
 
@@ -231,7 +231,6 @@ method new_from_chunk($chunk, *@args) {
         }
         $s => ($v ?? $t ?? :8($t) !! 0 !! $t)				# cdrake
     });
-    # say "$?FILE:$?LINE " ~ %entry.gist;
     if substr(%entry<size>, 0, 1) eq "\x80" {	# binary size extension for files >8gigs (> octal 77777777777777)	# cdrake
       my @sz       = %entry<size>.unpack("aCSNN");
       # Use the low 80 bits (should use the upper 15 as well, but as at year 2011,
@@ -507,10 +506,10 @@ method full_path {
 #~ =cut
 
 method validate {
-    my $raw = self.raw || buf8.new;
+    my $raw = self.raw || Buf.new;
 
     ### don't know why this one is different from the one we /write/ ###
-    subbuf-rw($raw, 148, 8) = buf8.new(0x20 xx 8);
+    subbuf-rw($raw, 148, 8) = Buf.new(0x20 xx 8);
 
     ### bug #43513: [PATCH] Accept wrong checksums from SunOS and HP-UX tar
     ### like GNU tar does. See here for details:

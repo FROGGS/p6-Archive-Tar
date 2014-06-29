@@ -34,11 +34,11 @@ sub EXPORT(|) {
 
     %EXPORT<&BLOCK_SIZE>   := { my $n = ($^a/BLOCK).Int; $n++ if $^a % BLOCK; $n * BLOCK };
     %EXPORT<TAR_PAD>       := -> $a? { my $x = $a || return; return "\x0" x (BLOCK - ($x % BLOCK) ) };
-    %EXPORT<TAR_END>        = buf8.new(0 xx BLOCK);
+    %EXPORT<TAR_END>        = Buf.new(0 xx BLOCK);
 
     %EXPORT<&READ_ONLY>    := { $^a ?? { :r, :b } !! :r };
     %EXPORT<&WRITE_ONLY>   := { $^a ?? 'wb' ~ $^a !! 'w' };
-    %EXPORT<&MODE_READ>    := { +so $^a ~~ /^r/ };
+    %EXPORT<&MODE_READ>    := { so $^a ~~ /^r/ };
 
     # Pointless assignment to make -w shut up
     #~ my $getpwuid; $getpwuid = 'unknown' unless eval { my $f = getpwuid (0); };
@@ -64,10 +64,7 @@ sub EXPORT(|) {
     %EXPORT<LONGLINK_NAME>  = '././@LongLink';
     %EXPORT<PAX_HEADER>     = 'pax_global_header';
 
-                            ### allow ZLIB to be turned off using ENV: DEBUG only
-    %EXPORT<ZLIB>           = do { !%*ENV<PERL5_AT_NO_ZLIB> and try { require IO::Zlib };
-                                %*ENV<PERL5_AT_NO_ZLIB> || +not so $!
-                            };
+    %EXPORT<ZLIB>          := do { try require Compress::Zlib; not so $! };
                             ### allow BZIP to be turned off using ENV: DEBUG only
     %EXPORT<BZIP>           = do { !%*ENV<PERL5_AT_NO_BZIP> and
                                 try { require IO::Uncompress::Bunzip2; require IO::Compress::Bzip2; };
