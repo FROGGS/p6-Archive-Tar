@@ -654,53 +654,45 @@ sub extract_file {
     #~ return $self->_extract_file( $entry, $alt );
 }
 
-sub _extract_file {
-    #~ my $self    = shift;
-    #~ my $entry   = shift or return;
-    #~ my $alt     = shift;
+method _extract_file($entry, $alt?) {
+    return unless $entry;
 
     ### you wanted an alternate extraction location ###
-    #~ my $name = defined $alt ? $alt : $entry->full_path;
+    my $name = $alt.defined ?? $alt !! $entry.full_path;
 
                             ### splitpath takes a bool at the end to indicate
                             ### that it's splitting a dir
-    #~ my ($vol,$dirs,$file);
-    #~ if ( defined $alt ) { # It's a local-OS path
-        #~ ($vol,$dirs,$file) = File::Spec->splitpath(       $alt,
-                                                          #~ $entry->is_dir );
-    #~ } else {
-        #~ ($vol,$dirs,$file) = File::Spec::Unix->splitpath( $name,
-                                                          #~ $entry->is_dir );
-    #~ }
+    my ($vol, $dirs, $file);
+    if defined $alt { # It's a local-OS path
+        ($vol, $dirs, $file) = IO::Spec.splitpath( $alt, :nofile($entry.is_dir) );
+    }
+    else {
+        ($vol, $dirs, $file) = IO::Spec::Unix.splitpath( $name, :nofile($entry.is_dir) );
+    }
 
-    #~ my $dir;
+    my $dir;
     ### is $name an absolute path? ###
-    #~ if( $vol || File::Spec->file_name_is_absolute( $dirs ) ) {
+    if $vol || $dirs.path.is-absolute {
 
         ### absolute names are not allowed to be in tarballs under
         ### strict mode, so only allow it if a user tells us to do it
-        #~ if( not defined $alt and not $INSECURE_EXTRACT_MODE ) {
-            #~ $self->_error(
-                #~ q[Entry ']. $entry->full_path .q[' is an absolute path. ].
-                #~ q[Not extracting absolute paths under SECURE EXTRACT MODE]
-            #~ );
-            #~ return;
-        #~ }
+        if !$alt.defined && !$INSECURE_EXTRACT_MODE {
+            self._error = "Entry '{$entry.full_path}' is an absolute path. "
+                        ~ "Not extracting absolute paths under SECURE EXTRACT MODE";
+            return;
+        }
 
         ### user asked us to, it's fine.
-        #~ $dir = File::Spec->catpath( $vol, $dirs, "" );
+        $dir = IO::Spec.catpath( $vol, $dirs, '' );
 
     ### it's a relative path ###
-    #~ }
-    #~ else {
-        #~ my $cwd     = (ref $self and defined $self->{cwd})
-                        #~ ? $self->{cwd}
-                        #~ : cwd();
-
-        #~ my @dirs = defined $alt
-            #~ ? File::Spec->splitdir( $dirs )         # It's a local-OS path
-            #~ : File::Spec::Unix->splitdir( $dirs );  # it's UNIX-style, likely
-                                                    # straight from the tarball
+    }
+    else {
+        my $cwd  = self.cwd // cwd();
+        my @dirs = $alt.defined
+                ?? IO::Spec.splitdir( $dirs )         # It's a local-OS path
+                !! IO::Spec::Unix.splitdir( $dirs );  # it's UNIX-style, likely
+                                                      # straight from the tarball
 
         #~ if( not defined $alt            and
             #~ not $INSECURE_EXTRACT_MODE
@@ -754,10 +746,9 @@ sub _extract_file {
         ### Must not add a '/' to an empty directory though.
         #~ map { length() ? VMS::Filespec::vmsify($_.'/') : $_ } @dirs if ON_VMS;
 
-        #~ my ($cwd_vol,$cwd_dir,$cwd_file)
-                    #~ = File::Spec->splitpath( $cwd );
-        #~ my @cwd     = File::Spec->splitdir( $cwd_dir );
-        #~ push @cwd, $cwd_file if length $cwd_file;
+        my ($cwd_vol, $cwd_dir, $cwd_file) = IO::Spec.splitpath( $cwd );
+        my @cwd                            = IO::Spec.splitdir( $cwd_dir );
+        push @cwd, $cwd_file if $cwd_file;
 
         ### We need to pass '' as the last element to catpath. Craig Berry
         ### explains why (msgid <p0624083dc311ae541393@[172.16.52.1]>):
@@ -770,25 +761,23 @@ sub _extract_file {
         ### know the result should be a directory.  I had thought you could omit
         ### the file argument to catpath in such a case, but apparently on UNIX
         ### you can't.
-        #~ $dir        = File::Spec->catpath(
-                            #~ $cwd_vol, File::Spec->catdir( @cwd, @dirs ), ''
-                        #~ );
+        $dir = IO::Spec.catpath( $cwd_vol, IO::Spec.catdir( @cwd, @dirs ), '' );
 
         ### catdir() returns undef if the path is longer than 255 chars on
         ### older VMS systems.
-        #~ unless ( defined $dir ) {
-            #~ $^W && $self->_error( qq[Could not compose a path for '$dirs'\n] );
-            #~ return;
-        #~ }
+        unless $dir {
+            self._error = "Could not compose a path for '$dirs'";
+            return;
+        }
 
-    #~ }
+    }
 
-    #~ if( -e $dir && !-d _ ) {
-        #~ $^W && $self->_error( qq['$dir' exists, but it's not a directory!\n] );
-        #~ return;
-    #~ }
+    if $dir.IO.e && !$dir.IO.d {
+        self._error = "'$dir' exists, but it's not a directory!";
+        return;
+    }
 
-    #~ unless ( -d _ ) {
+    unless $dir.IO.d {
         #~ eval { File::Path::mkpath( $dir, 0, 0777 ) };
         #~ if( $@ ) {
             #~ my $fp = $entry->full_path;
@@ -806,42 +795,26 @@ sub _extract_file {
         #    chown $entry->uid, $entry->gid, $dir or
         #        $self->_error( qq[Could not set uid/gid on '$dir'] );
         #}
-    #~ }
+    }
 
+    say "$?FILE:$?LINE " ~ $entry.gist;
     ### we're done if we just needed to create a dir ###
-    #~ return 1 if $entry->is_dir;
+    return 1 if $entry.is_dir;
 
-    #~ my $full = File::Spec->catfile( $dir, $file );
+    say my $full = IO::Spec.catfile( $dir, $file );
 
-    #~ if( $entry->is_unknown ) {
-        #~ $self->_error( qq[Unknown file type for file '$full'] );
-        #~ return;
-    #~ }
+    if $entry.is_unknown {
+        self._error = "Unknown file type for file '$full'";
+        return;
+    }
 
-    #~ if( length $entry->type && $entry->is_file ) {
-        #~ my $fh = IO::File->new;
-        #~ $fh->open( '>' . $full ) or (
-            #~ $self->_error( qq[Could not open file '$full': $!] ),
-            #~ return
-        #~ );
-
-        #~ if( $entry->size ) {
-            #~ binmode $fh;
-            #~ syswrite $fh, $entry->data or (
-                #~ $self->_error( qq[Could not write data to '$full'] ),
-                #~ return
-            #~ );
-        #~ }
-
-        #~ close $fh or (
-            #~ $self->_error( qq[Could not close file '$full'] ),
-            #~ return
-        #~ );
-
-    #~ }
-    #~ else {
+    if $entry.type.Str.chars && $entry.is_file {
+        try $full.IO.spurt: $entry.data;
+        self._error = "Could not write data to '$full': $!" if $!;
+    }
+    else {
         #~ $self->_make_special_file( $entry, $full ) or return;
-    #~ }
+    }
 
     ### only update the timestamp if it's not a symlink; that will change the
     ### timestamp of the original. This addresses bug #33669: Could not update
@@ -867,7 +840,7 @@ sub _extract_file {
             #~ $self->_error( qq[Could not chown '$full' to ] . $entry->mode );
     #~ }
 
-    #~ return 1;
+    return 1;
 }
 
 sub _make_special_file {
