@@ -64,9 +64,9 @@ sub EXPORT(|) {
     %EXPORT<LONGLINK_NAME>  = '././@LongLink';
     %EXPORT<PAX_HEADER>     = 'pax_global_header';
 
-    %EXPORT<ZLIB>          := do { try require Compress::Zlib; not so $! };
+    %EXPORT<ZLIB>          := do { my $!; try require Compress::Zlib; not so $! };
                             ### allow BZIP to be turned off using ENV: DEBUG only
-    %EXPORT<BZIP>           = do { !%*ENV<PERL5_AT_NO_BZIP> and
+    %EXPORT<BZIP>           = do { my $!; !%*ENV<PERL5_AT_NO_BZIP> and
                                 try { require IO::Uncompress::Bunzip2; require IO::Compress::Bzip2; };
                                 %*ENV<PERL5_AT_NO_BZIP> || +not so $!
                             };
