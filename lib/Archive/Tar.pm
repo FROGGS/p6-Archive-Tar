@@ -19,7 +19,7 @@ has $._error is rw = '';
 #~ use File::Spec          ();
 #~ use File::Spec::Unix    ();
 #~ use File::Path          ();
-
+BEGIN try require Compress::Zlib;
 use Archive::Tar::File;
 use Archive::Tar::Constant;
 
@@ -258,7 +258,6 @@ method _get_handle($file is copy, $compress = 0, $mode = READ_ONLY( ZLIB )) {
             ### is it gzip?
             ### if you asked for compression, or the gzip magic number is present
             if ZLIB and ($compress or $magic[0,1] ~~ any @(GZIP_MAGIC_NUM)) {
-                require Compress::Zlib;
                 $fh = ::('Compress::Zlib::Wrap').new($fh, :gzip);
             }
         }
